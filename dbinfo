@@ -1,0 +1,78 @@
+#!/bin/sh
+
+#   @(#) dbinfo 4.5  05/01/2003 11:49:19
+#
+#   dbinfo - prints the schema of a database table to stdout
+#   Copyright (C) 1989-2003  David A. Snyder
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; version 2 of the License.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+
+usage() {
+    echo "usage: `basename $0` -d dbname -t tabname" >&2
+    exit 1
+}
+
+(echo "DBINFO version 4.5, Copyright (C) 1989-2003 David A. Snyder"; echo) >&2
+
+
+set -- `getopt d:t: $* 2>/dev/null`
+if [ $? != 0 ]
+then
+        usage
+fi
+for i in $*
+do
+        case $i in
+        -d)
+                DBNAME=$2
+                shift 2
+                ;;
+        -t)
+                TABNAME=$2
+                shift 2
+                ;;
+        --)
+                shift
+                break
+                ;;
+        esac
+done
+
+test -z "$DBNAME" && usage
+test -z "$TABNAME" && usage
+
+set -- `isql $DBNAME - <<! 2>/dev/null
+select tabname from systables where tabname = "$TABNAME";
+!`
+if [ $? = 255 ]
+then
+        echo "Database not found or no system permission." >&2
+        exit 1
+fi
+if [ "$2" != "$TABNAME" ]
+then
+        echo "Table $TABNAME not found." >&2
+        exit 1
+fi
+
+
+echo "I N F O   F O R   T A B L E   $TABNAME"
+
+isql $DBNAME - <<!!
+info indexes for $TABNAME;
+info columns for $TABNAME;
+!!
+
+exit 0
